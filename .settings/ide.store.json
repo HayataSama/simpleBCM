@@ -1,0 +1,5 @@
+{
+  "tz": "TZ-disabled",
+  "toolchain": "GCC",
+  "device": "STM32F072C8T6"
+}
