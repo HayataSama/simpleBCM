@@ -26,7 +26,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "horn.h"
 #include "scheduler.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -96,6 +98,14 @@ int main(void) {
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim7);
+
+  /* Initializations */
+  Horn_Init();
+
+  /* Create Tasks*/
+  createTask(Horn_ReadInput, 10);
+  createTask(Horn_Update, 10);
+  createTask(Horn_WriteOutput, 10);
   /* USER CODE END 2 */
 
   /* Infinite loop */
