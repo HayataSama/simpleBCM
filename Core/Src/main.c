@@ -20,12 +20,13 @@
 #include "main.h"
 #include "dma.h"
 #include "gpio.h"
+#include "stm32f0xx_hal_tim.h"
 #include "tim.h"
 #include "usart.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "scheduler.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -94,12 +95,13 @@ int main(void) {
   MX_USART3_UART_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_TIM_Base_Start_IT(&htim7);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) {
+    scheduler();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
