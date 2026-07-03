@@ -18,14 +18,15 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "dma.h"
 #include "gpio.h"
-#include "stm32f0xx_hal_tim.h"
 #include "tim.h"
 #include "usart.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "battery.h"
 #include "horn.h"
 #include "scheduler.h"
 
@@ -96,16 +97,21 @@ int main(void) {
   MX_TIM7_Init();
   MX_USART3_UART_Init();
   MX_TIM2_Init();
+  MX_ADC_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim7);
 
   /* Initializations */
   Horn_Init();
+  Battery_Init();
 
   /* Create Tasks*/
   createTask(Horn_ReadInput, 10);
   createTask(Horn_Update, 10);
   createTask(Horn_WriteOutput, 10);
+
+  createTask(Battery_ReadInput, 10);
+  createTask(Battery_Update, 10);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -130,8 +136,11 @@ void SystemClock_Config(void) {
   /** Initializes the RCC Oscillators according to the specified parameters
    * in the RCC_OscInitTypeDef structure.
    */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType =
+      RCC_OSCILLATORTYPE_HSI14 | RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.HSI14State = RCC_HSI14_ON;
+  RCC_OscInitStruct.HSI14CalibrationValue = 16;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL6;
