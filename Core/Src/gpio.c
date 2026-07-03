@@ -54,8 +54,8 @@ void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, F2_Pin|F1_Pin|GAS_VALVE_Pin|PETROL_IND_Pin
-                          |FLASHER_L_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, F2_Pin|F1_Pin|GAS_VALVE_Pin|GAS_IND_Pin
+                          |PETROL_IND_Pin|FLASHER_L_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, HORN_Pin|FLASHER_R_Pin|F4_Pin|F3_Pin, GPIO_PIN_RESET);
@@ -67,31 +67,37 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(BLUE_LED_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : F2_Pin F1_Pin GAS_VALVE_Pin PETROL_IND_Pin
-                           FLASHER_L_Pin */
-  GPIO_InitStruct.Pin = F2_Pin|F1_Pin|GAS_VALVE_Pin|PETROL_IND_Pin
-                          |FLASHER_L_Pin;
+  /*Configure GPIO pins : F2_Pin F1_Pin GAS_VALVE_Pin GAS_IND_Pin
+                           PETROL_IND_Pin FLASHER_L_Pin */
+  GPIO_InitStruct.Pin = F2_Pin|F1_Pin|GAS_VALVE_Pin|GAS_IND_Pin
+                          |PETROL_IND_Pin|FLASHER_L_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : GAS_IND_Pin */
-  GPIO_InitStruct.Pin = GAS_IND_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GAS_IND_GPIO_Port, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : SW_HORN_Pin SW_GAS_Pin */
-  GPIO_InitStruct.Pin = SW_HORN_Pin|SW_GAS_Pin;
+  /*Configure GPIO pin : SW_HORN_Pin */
+  GPIO_InitStruct.Pin = SW_HORN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(SW_HORN_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : SW_HAZARD_Pin SW_FLASHER_L_Pin SW_FLASHER_R_Pin */
-  GPIO_InitStruct.Pin = SW_HAZARD_Pin|SW_FLASHER_L_Pin|SW_FLASHER_R_Pin;
+  /*Configure GPIO pin : SW_GAS_Pin */
+  GPIO_InitStruct.Pin = SW_GAS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(SW_GAS_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : SW_HAZARD_Pin */
+  GPIO_InitStruct.Pin = SW_HAZARD_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(SW_HAZARD_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : SW_FLASHER_L_Pin SW_FLASHER_R_Pin */
+  GPIO_InitStruct.Pin = SW_FLASHER_L_Pin|SW_FLASHER_R_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : HORN_Pin FLASHER_R_Pin F4_Pin F3_Pin */
