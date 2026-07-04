@@ -1,0 +1,23 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Flash STM32",
+            "type": "shell",
+            "command": "C:/Users/hayata/AppData/Local/stm32cube/bundles/programmer/2.22.0+st.1/bin/STM32_Programmer_CLI.exe",
+            "args": [
+                "-c",
+                "port=SWD",
+                "-w",
+                "C:/Users/hayata/Desktop/digSysLab2-project/digSysLab2_project/build/Debug/digSysLab2_project.elf",
+                "-v",
+                "-rst"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            },
+            "problemMatcher": []
+        }
+    ]
+}
