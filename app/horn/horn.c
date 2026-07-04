@@ -1,6 +1,8 @@
 #include "horn.h"
 #include "battery.h"
 #include "main.h"
+#include "stm32f0xx_hal_gpio.h"
+#include "util.h"
 #include <stdint.h>
 
 #define HORN_TIMEOUT (5000 / 10) // 5 seconds with 10ms period
@@ -19,7 +21,8 @@ void Horn_Init(void) {
 }
 
 void Horn_ReadInput(void) {
-  sw_horn = HAL_GPIO_ReadPin(SW_HORN_GPIO_Port, SW_HORN_Pin);
+  GPIO_PinState input = HAL_GPIO_ReadPin(SW_HORN_GPIO_Port, SW_HORN_Pin);
+  sw_horn = debounce(input, 5);
 }
 
 void Horn_Update(void) {
