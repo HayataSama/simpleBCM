@@ -19,10 +19,9 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "tim.h"
-#include <stdint.h>
 
 /* USER CODE BEGIN 0 */
-
+#include <stdint.h>
 /* USER CODE END 0 */
 
 TIM_HandleTypeDef htim2;

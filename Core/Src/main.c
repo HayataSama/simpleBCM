@@ -104,11 +104,14 @@ int main(void) {
   HAL_TIM_Base_Start_IT(&htim7);
 
   /* Initializations */
+  ADC_Start(ADC_CHANNEL_6);
   Horn_Init();
   Battery_Init();
   Fuel_Init();
 
   /* Create Tasks*/
+  createTask(readADC, 10);
+
   createTask(Horn_ReadInput, 10);
   createTask(Horn_Update, 10);
   createTask(Horn_WriteOutput, 10);

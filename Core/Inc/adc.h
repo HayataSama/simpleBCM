@@ -41,7 +41,17 @@ extern ADC_HandleTypeDef hadc;
 void MX_ADC_Init(void);
 
 /* USER CODE BEGIN Prototypes */
-extern volatile uint8_t adcDataReady;
+typedef struct {
+  uint16_t ch6;
+  uint16_t ch7;
+  uint16_t ch8;
+  uint16_t ch9;
+} AdcValues;
+
+extern AdcValues adcValues;
+
+void ADC_Start(uint32_t ch);
+void readADC(void);
 /* USER CODE END Prototypes */
 
 #ifdef __cplusplus
