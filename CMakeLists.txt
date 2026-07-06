@@ -49,6 +49,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     app/scheduler/scheduler.c
     app/horn/horn.c
     app/battery/battery.c
+    app/fuel/fuel.c
 )
 
 # Add include paths
@@ -58,6 +59,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     app/scheduler
     app/horn
     app/battery
+    app/fuel
 )
 
 # Add project symbols (macros)

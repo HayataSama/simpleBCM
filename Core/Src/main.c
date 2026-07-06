@@ -27,6 +27,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "battery.h"
+#include "fuel.h"
 #include "horn.h"
 #include "scheduler.h"
 
@@ -98,12 +99,14 @@ int main(void) {
   MX_USART3_UART_Init();
   MX_TIM2_Init();
   MX_ADC_Init();
+  MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim7);
 
   /* Initializations */
   Horn_Init();
   Battery_Init();
+  Fuel_Init();
 
   /* Create Tasks*/
   createTask(Horn_ReadInput, 10);
@@ -112,11 +115,16 @@ int main(void) {
 
   createTask(Battery_ReadInput, 10);
   createTask(Battery_Update, 10);
+
+  createTask(Fuel_ReadInput, 10);
+  createTask(Fuel_Update, 10);
+  createTask(Fuel_WriteOutput, 10);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1) {
+    readRPM();
     scheduler();
     /* USER CODE END WHILE */
 

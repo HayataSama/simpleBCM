@@ -73,6 +73,8 @@ void Error_Handler(void);
 #define FLASHER_L_GPIO_Port GPIOA
 #define BATTERY_Pin GPIO_PIN_6
 #define BATTERY_GPIO_Port GPIOA
+#define ENGINE_RPM_Pin GPIO_PIN_15
+#define ENGINE_RPM_GPIO_Port GPIOB
 #define SW_HORN_Pin GPIO_PIN_10
 #define SW_HORN_GPIO_Port GPIOA
 #define SW_GAS_Pin GPIO_PIN_15
