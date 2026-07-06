@@ -27,13 +27,7 @@ BatteryStatus_t batteryStatus = BATTERY_OK;
 
 void Battery_Init(void) { HAL_ADC_Start_IT(&hadc); }
 
-void Battery_ReadInput(void) {
-  if (adcDataReady) {
-    adcValuePrev = adcValue;
-    adcValue = HAL_ADC_GetValue(&hadc);
-    HAL_ADC_Start_IT(&hadc);
-  }
-}
+void Battery_ReadInput(void) { adcValue = adcValues.ch6; }
 
 void Battery_Update(void) {
   // FIXME: This implementation of rising and falling edge is kinda stupid
