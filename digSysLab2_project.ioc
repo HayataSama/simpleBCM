@@ -1,4 +1,7 @@
 #MicroXplorer Configuration settings - do not modify
+ADC.DiscontinuousConvMode=ENABLE
+ADC.IPParameters=DiscontinuousConvMode,SamplingTime
+ADC.SamplingTime=ADC_SAMPLETIME_239CYCLES_5
 CAD.formats=
 CAD.pinconfig=
 CAD.provider=

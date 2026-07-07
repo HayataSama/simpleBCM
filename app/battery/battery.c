@@ -25,7 +25,7 @@ static VoltageTrend_t vTrend = STABLE;
 
 BatteryStatus_t batteryStatus = BATTERY_OK;
 
-void Battery_Init(void) { HAL_ADC_Start_IT(&hadc); }
+void Battery_Init(void) {}
 
 void Battery_ReadInput(void) { adcValue = adcValues.ch6; }
 

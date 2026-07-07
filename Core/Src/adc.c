@@ -51,7 +51,7 @@ void MX_ADC_Init(void) {
   hadc.Init.LowPowerAutoWait = DISABLE;
   hadc.Init.LowPowerAutoPowerOff = DISABLE;
   hadc.Init.ContinuousConvMode = DISABLE;
-  hadc.Init.DiscontinuousConvMode = DISABLE;
+  hadc.Init.DiscontinuousConvMode = ENABLE;
   hadc.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc.Init.DMAContinuousRequests = DISABLE;
@@ -64,7 +64,7 @@ void MX_ADC_Init(void) {
    */
   sConfig.Channel = ADC_CHANNEL_6;
   sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
-  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  sConfig.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;
   if (HAL_ADC_ConfigChannel(&hadc, &sConfig) != HAL_OK) {
     Error_Handler();
   }
@@ -167,7 +167,7 @@ static void ADC_SetChannel(uint32_t ch) {
   ADC_ChannelConfTypeDef config = {0};
   config.Channel = ch;
   config.Rank = ADC_RANK_CHANNEL_NUMBER;
-  config.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  config.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;
   HAL_ADC_ConfigChannel(&hadc, &config);
 }
 
