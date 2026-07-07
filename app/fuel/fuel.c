@@ -1,13 +1,20 @@
 #include "fuel.h"
+#include "adc.h"
 #include "main.h"
-#include "stm32f0xx_hal_tim.h"
 #include "tim.h"
 #include "util.h"
 #include <stdint.h>
 
-#define GAS_BLINK_PERIOD (400 / 10) // 400ms with 10ms period
+#define GAS_BLINK_PERIOD (400 / 10) // 400ms with 10ms task period
 #define ENGINE_RPM_THRSH 2400
 #define ENGINE_RPM_MIN 600
+
+// 1/2 resistor divider is used on pressure gauge output
+#define GAS_TANK_P0 MV2ADC(0)        // p <= 30psi
+#define GAS_TANK_P1 MV2ADC(1000 / 2) // 30 < p <= 60
+#define GAS_TANK_P2 MV2ADC(2000 / 2) // 60 < p <= 90
+#define GAS_TANK_P3 MV2ADC(3000 / 2) // 90 < p <= 140
+#define GAS_TANK_P4 MV2ADC(4000 / 2) // P > 140
 
 typedef enum { PETROL, GAS_STOP, GAS_RUN } FuelState_t;
 typedef enum { OFF, ON } PinState;
@@ -25,6 +32,7 @@ static FuelState_t fuelState = PETROL;
 static uint8_t toggleState = 0;
 static uint8_t gasIndTimer = 0;
 static uint16_t engineRPM = 0;
+static uint16_t gasTankPressure = 0;
 static FuelCmds fuelCmds = {.gasValve = OFF,
                             .gasInd = OFF,
                             .petrolInd = ON,
@@ -32,6 +40,37 @@ static FuelCmds fuelCmds = {.gasValve = OFF,
                             .f2 = OFF,
                             .f3 = OFF,
                             .f4 = OFF};
+
+static void setGasGaugeCmds(void) {
+  // This implementation is a bit different from what is reqired.
+  // I changed it to suit the parts that I have on hand.
+  if (gasTankPressure < GAS_TANK_P1) {
+    fuelCmds.f1 = OFF;
+    fuelCmds.f2 = OFF;
+    fuelCmds.f3 = OFF;
+    fuelCmds.f4 = OFF;
+  } else if (gasTankPressure > GAS_TANK_P1 && gasTankPressure < GAS_TANK_P2) {
+    fuelCmds.f1 = ON;
+    fuelCmds.f2 = OFF;
+    fuelCmds.f3 = OFF;
+    fuelCmds.f4 = OFF;
+  } else if (gasTankPressure > GAS_TANK_P2 && gasTankPressure < GAS_TANK_P3) {
+    fuelCmds.f1 = ON;
+    fuelCmds.f2 = ON;
+    fuelCmds.f3 = OFF;
+    fuelCmds.f4 = OFF;
+  } else if (gasTankPressure > GAS_TANK_P3 && gasTankPressure < GAS_TANK_P4) {
+    fuelCmds.f1 = ON;
+    fuelCmds.f2 = ON;
+    fuelCmds.f3 = ON;
+    fuelCmds.f4 = OFF;
+  } else if (gasTankPressure > GAS_TANK_P4) {
+    fuelCmds.f1 = ON;
+    fuelCmds.f2 = ON;
+    fuelCmds.f3 = ON;
+    fuelCmds.f4 = ON;
+  }
+}
 
 void Fuel_Init(void) {
   HAL_TIM_IC_Start_IT(&htim15, TIM_CHANNEL_2);
@@ -72,11 +111,10 @@ void Fuel_ReadInput(void) {
     gasSwPrev = gasSw;
   }
 
-  // TODO: read remaining gas
+  gasTankPressure = adcValues.ch7;
 }
 
 void Fuel_Update(void) {
-  // TODO: add accident logic
   switch (fuelState) {
   case PETROL:
     fuelCmds.petrolInd = ON;
@@ -98,14 +136,9 @@ void Fuel_Update(void) {
       gasIndTimer = 0;
       fuelCmds.gasInd ^= ON;
     }
-
     fuelCmds.petrolInd = OFF;
     fuelCmds.gasValve = OFF;
-    //   getFuel();
-    fuelCmds.f1 = ON; // they should light up based on gas tank pressure
-    fuelCmds.f2 = ON;
-    fuelCmds.f3 = ON;
-    fuelCmds.f4 = ON;
+    setGasGaugeCmds();
 
     if (toggleState) {
       toggleState = 0;
@@ -118,11 +151,8 @@ void Fuel_Update(void) {
   case GAS_RUN:
     fuelCmds.petrolInd = OFF;
     fuelCmds.gasValve = ON;
-    fuelCmds.gasInd = ON; // stable
-    fuelCmds.f1 = ON;     // they should light up based on gas tank pressure
-    fuelCmds.f2 = ON;
-    fuelCmds.f3 = ON;
-    fuelCmds.f4 = ON;
+    fuelCmds.gasInd = ON;
+    setGasGaugeCmds();
 
     if (toggleState) {
       toggleState = 0;
@@ -173,7 +203,7 @@ void readRPM(void) {
       edge1 = edge2;
     }
 
-    engineRPM = (1000000 / period) * 60;
+    engineRPM = (1000000 * 60) / period;
 
     HAL_TIM_IC_Start_IT(&htim15, TIM_CHANNEL_2);
   }

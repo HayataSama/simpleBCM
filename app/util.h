@@ -4,6 +4,8 @@
 #include "main.h"
 #include <stdint.h>
 
+#define MV2ADC(v) ((uint32_t)(v) * 4095 / 3300)
+
 /**
  * @brief Debounces a switch
  *
