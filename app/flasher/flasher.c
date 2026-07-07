@@ -6,7 +6,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define FLASHER_BLINK_PERIOD (400 / 10) // 400ms with 10ms task period
+#define LAMP_HEALTH_LT 620  // = 1V / 2
+#define LAMP_HEALTH_UT 2482 // = 4V / 2
 
 typedef enum {
   FLASHER_OFF,
@@ -35,8 +36,56 @@ static FlasherState_t flasherState = FLASHER_OFF;
 static FlasherState_t flasherStatePrev = FLASHER_OFF;
 static PinState flasherCmds[2] = {OFF,
                                   OFF}; // [0]: Left Flasher [1]: Right Flasher
+static uint8_t flasherBlinkPeriod = 40; // 400ms with 10ms task period
 static uint8_t toggleHazardState = 0;
 static uint8_t flasherTimer = 0;
+static uint8_t diagSent[2] = {0}; // [0]: Left Flasher [1]: Right Flasher
+
+static void checkLampHealth(void) {
+  /* Check Left Lamp*/
+  if (flasherInputs.leftLampCurr < LAMP_HEALTH_LT) {
+    // Open Circuit
+    flasherBlinkPeriod = 20;
+    if (!diagSent[0]) {
+      diagSent[0] = 1;
+      printf("FLHOC\r\n");
+    }
+  } else if (flasherInputs.leftLampCurr > LAMP_HEALTH_UT) {
+    // Short Circuit
+    // TODO: Requires a new cmd
+    flasherCmds[0] = 0;
+    if (!diagSent[0]) {
+      diagSent[0] = 1;
+      printf("FLHSC\r\n");
+    }
+  } else {
+    // Healthy
+    flasherBlinkPeriod = 40;
+    diagSent[0] = 0;
+  }
+
+  /* Check Left Lamp*/
+  if (flasherInputs.rightLampCurr < LAMP_HEALTH_LT) {
+    // Open Circuit
+    flasherBlinkPeriod = 20;
+    if (!diagSent[1]) {
+      diagSent[1] = 1;
+      printf("FRHOC\r\n");
+    }
+  } else if (flasherInputs.rightLampCurr > LAMP_HEALTH_UT) {
+    // Short Circuit
+    // TODO: Requires a new cmd
+    flasherCmds[1] = 0;
+    if (!diagSent[1]) {
+      diagSent[1] = 1;
+      printf("FRHSC\r\n");
+    }
+  } else {
+    // Healthy
+    flasherBlinkPeriod = 40;
+    diagSent[1] = 0;
+  }
+}
 
 void Flasher_Init(void) {
   HAL_GPIO_WritePin(FLASHER_L_GPIO_Port, FLASHER_L_Pin, STATE2GPIO(OFF, AH));
@@ -73,8 +122,6 @@ void Flasher_ReadInput(void) {
 }
 
 void Flasher_Update(void) {
-  // TODO: add adc curr logic
-
   switch (batteryStatus) {
   case BATTERY_UV:
     if (flasherState != FLASHER_HAZARD) {
@@ -120,7 +167,7 @@ void Flasher_Update(void) {
       break;
 
     case FLASHER_HAZARD:
-      if (++flasherTimer >= FLASHER_BLINK_PERIOD) {
+      if (++flasherTimer >= flasherBlinkPeriod) {
         flasherTimer = 0;
         flasherCmds[0] ^= ON;
         flasherCmds[1] ^= ON;
@@ -154,7 +201,7 @@ void Flasher_Update(void) {
       break;
 
     case FLASHER_L:
-      if (++flasherTimer >= FLASHER_BLINK_PERIOD) {
+      if (++flasherTimer >= flasherBlinkPeriod) {
         flasherTimer = 0;
         flasherCmds[0] ^= ON;
       }
@@ -179,7 +226,7 @@ void Flasher_Update(void) {
       break;
 
     case FLASHER_R:
-      if (++flasherTimer >= FLASHER_BLINK_PERIOD) {
+      if (++flasherTimer >= flasherBlinkPeriod) {
         flasherTimer = 0;
         flasherCmds[1] ^= ON;
       }
@@ -211,6 +258,9 @@ void Flasher_Update(void) {
     }
     break;
   }
+
+  // This overwrites flasherCmds if lamps have a problem
+  checkLampHealth();
 }
 
 void Flasher_WriteOutput(void) {
