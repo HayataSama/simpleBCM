@@ -4,6 +4,11 @@
 #include "main.h"
 #include <stdint.h>
 
+typedef struct {
+  GPIO_PinState swStable;
+  uint8_t counter;
+} Debounce_t;
+
 // GPIO Pin Level: Active-High or Active-Low
 typedef enum { AL, AH } PinLevel;
 
@@ -27,20 +32,17 @@ typedef enum { OFF, ON } PinState;
  *
  * @retval GPIO_PinState swStable
  */
-static GPIO_PinState debounce(GPIO_PinState sw, uint8_t cnt) {
-  static GPIO_PinState swStable = 0;
-  static uint8_t counter = 0;
-
-  if (sw == swStable) {
-    counter = 0;
+static GPIO_PinState debounce(GPIO_PinState sw, uint8_t cnt, Debounce_t *db) {
+  if (sw == db->swStable) {
+    db->counter = 0;
   } else {
-    counter++;
-    if (counter > cnt) {
-      swStable = sw;
+    if (++db->counter >= cnt) {
+      db->counter = 0;
+      db->swStable = sw;
     }
   }
 
-  return swStable;
+  return db->swStable;
 }
 
 #endif

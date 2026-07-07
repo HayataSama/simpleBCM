@@ -97,9 +97,10 @@ void Fuel_ReadInput(void) {
   // LS or HS
   static GPIO_PinState gasSw = GPIO_PIN_SET;
   static GPIO_PinState gasSwPrev = GPIO_PIN_SET;
+  static Debounce_t gasSwDb = {0};
 
   GPIO_PinState input = HAL_GPIO_ReadPin(SW_GAS_GPIO_Port, SW_GAS_Pin);
-  gasSw = debounce(input, 5);
+  gasSw = debounce(input, 5, &gasSwDb);
 
   if (gasSwPrev == GPIO_PIN_SET && gasSw == GPIO_PIN_RESET) {
     // Switch pressed
