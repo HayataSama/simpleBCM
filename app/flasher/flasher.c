@@ -1,8 +1,21 @@
 #include "flasher.h"
 #include "adc.h"
+#include "battery.h"
 #include "main.h"
 #include "util.h"
 #include <stdint.h>
+#include <stdio.h>
+
+#define FLASHER_BLINK_PERIOD (400 / 10) // 400ms with 10ms task period
+
+typedef enum {
+  FLASHER_OFF,
+  FLASHER_HAZARD,
+  FLASHER_L,
+  FLASHER_R,
+  FLASHER_OV,
+  FLASHER_UV
+} FlasherState_t;
 
 typedef struct {
   PinState leftSw;
@@ -12,14 +25,18 @@ typedef struct {
   uint16_t rightLampCurr;
 } FlasherInput_t;
 
+FlasherInput_t flasherInputs = {.leftSw = OFF,
+                                .rightSw = OFF,
+                                .hazardSw = OFF,
+                                .leftLampCurr = 0,
+                                .rightLampCurr = 0};
+
+static FlasherState_t flasherState = FLASHER_OFF;
+static FlasherState_t flasherStatePrev = FLASHER_OFF;
 static PinState flasherCmds[2] = {OFF,
                                   OFF}; // [0]: Left Flasher [1]: Right Flasher
-static uint8_t toggleHazardState;
-static FlasherInput_t flasherInputs = {.leftSw = OFF,
-                                       .rightSw = OFF,
-                                       .hazardSw = OFF,
-                                       .leftLampCurr = 0,
-                                       .rightLampCurr = 0};
+static uint8_t toggleHazardState = 0;
+static uint8_t flasherTimer = 0;
 
 void Flasher_Init(void) {
   HAL_GPIO_WritePin(FLASHER_L_GPIO_Port, FLASHER_L_Pin, STATE2GPIO(OFF, AH));
@@ -55,7 +72,146 @@ void Flasher_ReadInput(void) {
   }
 }
 
-void Flasher_Update(void) {}
+void Flasher_Update(void) {
+  // TODO: add adc curr logic
+
+  switch (batteryStatus) {
+  case BATTERY_UV:
+    if (flasherState != FLASHER_HAZARD) {
+      flasherCmds[0] = OFF;
+      flasherCmds[1] = OFF;
+      flasherState = FLASHER_UV;
+    } else {
+      // probably do nothing?
+    }
+    // TODO: write fault to diag if it's the first time this loop is run
+    break;
+
+  case BATTERY_OV:
+    if (flasherState != FLASHER_HAZARD) {
+      flasherCmds[0] = OFF;
+      flasherCmds[1] = OFF;
+      flasherState = FLASHER_OV;
+    } else {
+      // probably do nothing?
+    }
+    break;
+
+  case BATTERY_OK:
+    // Every time we transition between states, we turn the output OFF for a
+    // breif moment to avoid desyncronization between left and right flashers
+
+    switch (flasherState) {
+    case FLASHER_OFF:
+      flasherCmds[0] = OFF;
+      flasherCmds[1] = OFF;
+
+      if (toggleHazardState) {
+        toggleHazardState = 0;
+        flasherState = FLASHER_HAZARD;
+        flasherStatePrev = FLASHER_OFF;
+      } else if (flasherInputs.leftSw == ON) {
+        flasherState = FLASHER_L;
+        flasherStatePrev = FLASHER_OFF;
+      } else if (flasherInputs.rightSw == ON) {
+        flasherState = FLASHER_R;
+        flasherStatePrev = FLASHER_OFF;
+      }
+      break;
+
+    case FLASHER_HAZARD:
+      if (++flasherTimer >= FLASHER_BLINK_PERIOD) {
+        flasherTimer = 0;
+        flasherCmds[0] ^= ON;
+        flasherCmds[1] ^= ON;
+      }
+
+      if (!toggleHazardState && flasherInputs.leftSw) {
+        flasherCmds[0] = OFF;
+        flasherCmds[1] = OFF;
+
+        flasherState = FLASHER_L;
+        flasherStatePrev = FLASHER_HAZARD;
+      } else if (!toggleHazardState && flasherInputs.rightSw) {
+        flasherCmds[0] = OFF;
+        flasherCmds[1] = OFF;
+
+        flasherState = FLASHER_R;
+        flasherStatePrev = FLASHER_HAZARD;
+      } else if (toggleHazardState) {
+        // FIXME: these two fail when we want to change from H -> OFF in the
+        // first one and H -> L in the second one
+        // OFF -> H -> L -> H -> OFF
+        // OFF -> L -> H -> L -> OFF
+        toggleHazardState = 0;
+
+        flasherCmds[0] = OFF;
+        flasherCmds[1] = OFF;
+
+        flasherState = flasherStatePrev;
+        flasherStatePrev = FLASHER_HAZARD;
+      }
+      break;
+
+    case FLASHER_L:
+      if (++flasherTimer >= FLASHER_BLINK_PERIOD) {
+        flasherTimer = 0;
+        flasherCmds[0] ^= ON;
+      }
+      flasherCmds[1] = OFF;
+
+      // next state
+      if (flasherInputs.leftSw == OFF) {
+        flasherCmds[0] = OFF;
+        flasherCmds[1] = OFF;
+
+        flasherState = flasherStatePrev;
+        flasherStatePrev = FLASHER_L;
+      } else if (flasherInputs.leftSw == ON && toggleHazardState == 1) {
+        toggleHazardState = 0;
+
+        flasherCmds[0] = OFF;
+        flasherCmds[1] = OFF;
+
+        flasherState = FLASHER_HAZARD;
+        flasherStatePrev = FLASHER_L;
+      }
+      break;
+
+    case FLASHER_R:
+      if (++flasherTimer >= FLASHER_BLINK_PERIOD) {
+        flasherTimer = 0;
+        flasherCmds[1] ^= ON;
+      }
+      flasherCmds[0] = OFF;
+
+      // next state
+      if (flasherInputs.rightSw == OFF) {
+        flasherCmds[0] = OFF;
+        flasherCmds[1] = OFF;
+
+        flasherState = flasherStatePrev;
+        flasherStatePrev = FLASHER_R;
+      } else if (flasherInputs.rightSw == ON && toggleHazardState == 1) {
+        toggleHazardState = 0;
+
+        flasherCmds[0] = OFF;
+        flasherCmds[1] = OFF;
+
+        flasherState = FLASHER_HAZARD;
+        flasherStatePrev = FLASHER_R;
+      }
+      break;
+
+    case FLASHER_OV:
+      break;
+
+    case FLASHER_UV:
+      break;
+    }
+    break;
+  }
+}
 
 void Flasher_WriteOutput(void) {
   HAL_GPIO_WritePin(FLASHER_L_GPIO_Port, FLASHER_L_Pin,
