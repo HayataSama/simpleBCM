@@ -46,6 +46,7 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     app/printf.c
+    app/diagnostic/diagnostic.c
     app/scheduler/scheduler.c
     app/horn/horn.c
     app/battery/battery.c
@@ -60,6 +61,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     app/horn
     app/battery
     app/fuel
+    app/diagnostic
 )
 
 # Add project symbols (macros)

@@ -24,9 +24,11 @@
 #include "tim.h"
 #include "usart.h"
 
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "battery.h"
+#include "diagnostic.h"
 #include "fuel.h"
 #include "horn.h"
 #include "scheduler.h"
@@ -122,6 +124,8 @@ int main(void) {
   createTask(Fuel_ReadInput, 10);
   createTask(Fuel_Update, 10);
   createTask(Fuel_WriteOutput, 10);
+
+  createTask(diagnostic, 250);
   /* USER CODE END 2 */
 
   /* Infinite loop */
