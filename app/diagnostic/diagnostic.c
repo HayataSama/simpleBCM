@@ -7,5 +7,6 @@ void diagnostic(void) {
          "ADC ch8: %u  "
          "ADC ch9: %u"
          "\r\n",
-         adcValues.ch6, adcValues.ch7, adcValues.ch8, adcValues.ch9);
+         adcValues.battery, adcValues.gasTankPressure,
+         adcValues.rightFlasherCurr, adcValues.leftFlasherCurr);
 }

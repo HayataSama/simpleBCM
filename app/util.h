@@ -6,6 +6,8 @@
 
 #define MV2ADC(v) ((uint32_t)(v) * 4095 / 3300)
 
+typedef enum { OFF, ON } PinState;
+
 /**
  * @brief Debounces a switch
  *

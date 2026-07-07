@@ -42,10 +42,10 @@ void MX_ADC_Init(void);
 
 /* USER CODE BEGIN Prototypes */
 typedef struct {
-  uint16_t ch6;
-  uint16_t ch7;
-  uint16_t ch8;
-  uint16_t ch9;
+  uint16_t battery;
+  uint16_t gasTankPressure;
+  uint16_t rightFlasherCurr;
+  uint16_t leftFlasherCurr;
 } AdcValues;
 
 extern AdcValues adcValues;

@@ -27,7 +27,7 @@ BatteryStatus_t batteryStatus = BATTERY_OK;
 
 void Battery_Init(void) {}
 
-void Battery_ReadInput(void) { adcValue = adcValues.ch6; }
+void Battery_ReadInput(void) { adcValue = adcValues.battery; }
 
 void Battery_Update(void) {
   // FIXME: This implementation of rising and falling edge is kinda stupid

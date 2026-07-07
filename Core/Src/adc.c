@@ -187,22 +187,22 @@ void readADC(void) {
     val = HAL_ADC_GetValue(&hadc);
     switch (current_ch) {
     case ADC_CHANNEL_6:
-      adcValues.ch6 = val;
+      adcValues.battery = val;
       current_ch = ADC_CHANNEL_7;
       break;
 
     case ADC_CHANNEL_7:
-      adcValues.ch7 = val;
+      adcValues.gasTankPressure = val;
       current_ch = ADC_CHANNEL_8;
       break;
 
     case ADC_CHANNEL_8:
-      adcValues.ch8 = val;
+      adcValues.rightFlasherCurr = val;
       current_ch = ADC_CHANNEL_9;
       break;
 
     case ADC_CHANNEL_9:
-      adcValues.ch9 = val;
+      adcValues.leftFlasherCurr = val;
       current_ch = ADC_CHANNEL_6;
       break;
     }

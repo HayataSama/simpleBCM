@@ -17,7 +17,6 @@
 #define GAS_TANK_P4 MV2ADC(4000 / 2) // P > 140
 
 typedef enum { PETROL, GAS_STOP, GAS_RUN } FuelState_t;
-typedef enum { OFF, ON } PinState;
 typedef struct {
   PinState gasValve;
   PinState gasInd;
@@ -111,7 +110,7 @@ void Fuel_ReadInput(void) {
     gasSwPrev = gasSw;
   }
 
-  gasTankPressure = adcValues.ch7;
+  gasTankPressure = adcValues.gasTankPressure;
 }
 
 void Fuel_Update(void) {
