@@ -24,11 +24,11 @@
 #include "tim.h"
 #include "usart.h"
 
-
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "battery.h"
 #include "diagnostic.h"
+#include "flasher.h"
 #include "fuel.h"
 #include "horn.h"
 #include "scheduler.h"
@@ -104,12 +104,14 @@ int main(void) {
   MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim7);
+  HAL_TIM_Base_Start(&htim2);
 
   /* Initializations */
   ADC_Start(ADC_CHANNEL_6);
   Horn_Init();
   Battery_Init();
   Fuel_Init();
+  Flasher_Init();
 
   /* Create Tasks*/
   createTask(readADC, 10);
@@ -124,6 +126,10 @@ int main(void) {
   createTask(Fuel_ReadInput, 10);
   createTask(Fuel_Update, 10);
   createTask(Fuel_WriteOutput, 10);
+
+  createTask(Flasher_ReadInput, 10);
+  createTask(Flasher_Update, 10);
+  createTask(Flasher_WriteOutput, 10);
 
   createTask(diagnostic, 250);
   /* USER CODE END 2 */
