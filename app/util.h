@@ -4,9 +4,18 @@
 #include "main.h"
 #include <stdint.h>
 
-#define MV2ADC(v) ((uint32_t)(v) * 4095 / 3300)
+// GPIO Pin Level: Active-High or Active-Low
+typedef enum { AL, AH } PinLevel;
 
 typedef enum { OFF, ON } PinState;
+
+#define MV2ADC(v) ((uint32_t)(v) * 4095 / 3300)
+#define GPIO2STATE(pin, level)                                                 \
+  (((GPIO_PinState)(pin) ^ (PinLevel)(level)) ? (PinState)(OFF)                \
+                                              : (PinState)(ON))
+#define STATE2GPIO(state, level)                                               \
+  (((PinState)(state) ^ (PinLevel)(level)) ? (GPIO_PinState)(GPIO_PIN_RESET)   \
+                                           : (GPIO_PinState)(GPIO_PIN_SET))
 
 /**
  * @brief Debounces a switch
