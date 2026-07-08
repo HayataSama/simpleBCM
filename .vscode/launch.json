@@ -1,0 +1,79 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch debugger",
+            "type": "stlinkgdbtarget",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "preBuild": "${command:st-stm32-ide-debug-launch.build}",
+            "runEntry": "main",
+            "imagesAndSymbols": [
+                {
+                    "imageFileName": "${workspaceFolder}/build/Debug/digSysLab2_project.elf"
+                }
+            ],
+            "deviceCore": "Cortex-M0",
+            "verbose": false,
+            "deviceName": "STM32F072C8T6",
+            "deviceTrustzone": "TZ-disabled",
+            "svdPath": "C:\\Users\\hayata\\AppData\\Local\\stm32cube\\packs\\STMicroelectronics\\stm32f0xx_dfp\\1.2.0\\SVD\\STM32F0x2.svd",
+            "serverApID": "0",
+            "serverReset": "Connect under reset",
+            "serverInterface": "SWD",
+            "serverInterfaceFrequency": "Auto",
+            "serverShared": false,
+            "serverHaltAllCores": false,
+            "serverHost": "localhost",
+            "serverPort": "61234",
+            "openGdbConsole": false,
+            "faultDivByZero": true,
+            "faultUnalignedAccess": false,
+            "faultHaltOnException": true,
+            "deviceDebugInLowPower": true,
+            "deviceStopWDGOnHalt": true,
+            "liveWatch": {
+                "enabled": true,
+                "samplesPerSecond": "4"
+            }
+        },
+        {
+            "name": "Attach Debugger",
+            "type": "stlinkgdbtarget",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "preBuild": "${command:st-stm32-ide-debug-launch.build}",
+            "imagesAndSymbols": [
+                {
+                    "symbolFileName": "${workspaceFolder}/build/Debug/digSysLab2_project.elf"
+                }
+            ],
+            "deviceCore": "Cortex-M0",
+            "serverReset": "None",
+            "liveWatch": {
+                "enabled": true,
+                "samplesPerSecond": "4"
+            },
+            "verbose": false,
+            "deviceName": "STM32F072C8T6",
+            "deviceTrustzone": "TZ-disabled",
+            "svdPath": "C:\\Users\\hayata\\AppData\\Local\\stm32cube\\packs\\STMicroelectronics\\stm32f0xx_dfp\\1.2.0\\SVD\\STM32F0x2.svd",
+            "serverApID": "0",
+            "serverInterface": "SWD",
+            "serverInterfaceFrequency": "Auto",
+            "serverShared": false,
+            "serverHaltAllCores": false,
+            "serverHost": "localhost",
+            "serverPort": "61234",
+            "openGdbConsole": false,
+            "faultDivByZero": true,
+            "faultUnalignedAccess": false,
+            "faultHaltOnException": true,
+            "deviceDebugInLowPower": true,
+            "deviceStopWDGOnHalt": true
+        }
+    ]
+}
