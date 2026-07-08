@@ -1,6 +1,5 @@
 #include "flasher.h"
 #include "adc.h"
-#include "battery.h"
 #include "main.h"
 #include "util.h"
 #include <stdint.h>
@@ -15,8 +14,6 @@ typedef enum {
   FLASHER_HAZARD,
   FLASHER_L,
   FLASHER_R,
-  FLASHER_OV,
-  FLASHER_UV
 } FlasherState_t;
 
 typedef struct {
@@ -125,155 +122,144 @@ void Flasher_ReadInput(void) {
 }
 
 void Flasher_Update(void) {
-  switch (batteryStatus) {
-  case BATTERY_UV:
-    if (flasherState != FLASHER_HAZARD) {
-      flasherCmds[0] = OFF;
-      flasherCmds[1] = OFF;
-      flasherState = FLASHER_UV;
-    } else {
-      // probably do nothing?
-    }
-    // TODO: write fault to diag if it's the first time this loop is run
-    break;
+  // Every time we transition between states, we turn the output OFF for a
+  // breif moment to avoid desyncronization between left and right flashers
+  switch (flasherState) {
+  case FLASHER_OFF:
+    flasherCmds[0] = OFF;
+    flasherCmds[1] = OFF;
 
-  case BATTERY_OV:
-    if (flasherState != FLASHER_HAZARD) {
-      flasherCmds[0] = OFF;
-      flasherCmds[1] = OFF;
-      flasherState = FLASHER_OV;
-    } else {
-      // probably do nothing?
-    }
-    break;
-
-  case BATTERY_OK:
-    // Every time we transition between states, we turn the output OFF for a
-    // breif moment to avoid desyncronization between left and right flashers
-
-    switch (flasherState) {
-    case FLASHER_OFF:
-      flasherCmds[0] = OFF;
-      flasherCmds[1] = OFF;
-
-      if (toggleHazardState) {
+    if (flasherStatePrev == FLASHER_OFF) {
+      if (flasherInputs.leftSw) {
+        flasherState = FLASHER_L;
+      } else if (flasherInputs.rightSw) {
+        flasherState = FLASHER_R;
+      } else if (toggleHazardState) {
         toggleHazardState = 0;
         flasherState = FLASHER_HAZARD;
-        flasherStatePrev = FLASHER_OFF;
-      } else if (flasherInputs.leftSw == ON) {
+      }
+    }
+    // This handles going back to the previous state
+    else if (flasherStatePrev == FLASHER_HAZARD) {
+      if (flasherInputs.leftSw) {
         flasherState = FLASHER_L;
-        flasherStatePrev = FLASHER_OFF;
-      } else if (flasherInputs.rightSw == ON) {
+      } else if (flasherInputs.rightSw) {
         flasherState = FLASHER_R;
+      } else {
+        flasherState = flasherStatePrev;
         flasherStatePrev = FLASHER_OFF;
       }
-      break;
-
-    case FLASHER_HAZARD:
-      if (++flasherTimer >= flasherBlinkPeriod) {
-        flasherTimer = 0;
-        flasherCmds[0] ^= ON;
-        flasherCmds[1] ^= ON;
-        blinkCnt += flasherCmds[0];
+    } else if (flasherStatePrev == FLASHER_L) {
+      if (flasherInputs.rightSw) {
+        flasherState = FLASHER_R;
+      } else if (toggleHazardState) {
+        toggleHazardState = 0;
+        flasherState = FLASHER_HAZARD;
+      } else {
+        flasherState = flasherStatePrev;
+        flasherStatePrev = FLASHER_OFF;
       }
-
-      if (blinkCnt > MIN_FLASHER_BLINK) {
-        if (!toggleHazardState && flasherInputs.leftSw) {
-          flasherCmds[0] = OFF;
-          flasherCmds[1] = OFF;
-
-          flasherState = FLASHER_L;
-          flasherStatePrev = FLASHER_HAZARD;
-          blinkCnt = 0;
-        } else if (!toggleHazardState && flasherInputs.rightSw) {
-          flasherCmds[0] = OFF;
-          flasherCmds[1] = OFF;
-
-          flasherState = FLASHER_R;
-          flasherStatePrev = FLASHER_HAZARD;
-          blinkCnt = 0;
-        } else if (toggleHazardState) {
-          // FIXME: these two fail when we want to change from H -> OFF in the
-          // first one and H -> L in the second one
-          // OFF -> H -> L -> H -> OFF
-          // OFF -> L -> H -> L -> OFF
-          toggleHazardState = 0;
-
-          flasherCmds[0] = OFF;
-          flasherCmds[1] = OFF;
-
-          flasherState = flasherStatePrev;
-          flasherStatePrev = FLASHER_HAZARD;
-          blinkCnt = 0;
-        }
+    } else if (flasherStatePrev == FLASHER_R) {
+      if (flasherInputs.leftSw) {
+        flasherState = FLASHER_L;
+      } else if (toggleHazardState) {
+        toggleHazardState = 0;
+        flasherState = FLASHER_HAZARD;
+      } else {
+        flasherState = flasherStatePrev;
+        flasherStatePrev = FLASHER_OFF;
       }
+    }
+    break;
 
-      break;
-    case FLASHER_L:
-      if (++flasherTimer >= flasherBlinkPeriod) {
-        flasherTimer = 0;
-        flasherCmds[0] ^= ON;
-        blinkCnt += flasherCmds[0];
+  case FLASHER_HAZARD:
+    if (++flasherTimer >= flasherBlinkPeriod) {
+      flasherTimer = 0;
+      flasherCmds[0] ^= ON;
+      flasherCmds[1] ^= ON;
+      blinkCnt += flasherCmds[0];
+    }
+
+    // Determine the next state
+    if (flasherStatePrev == FLASHER_OFF) {
+      if (toggleHazardState && blinkCnt > MIN_FLASHER_BLINK) {
+        toggleHazardState = 0;
+        blinkCnt = 0;
+        flasherState = FLASHER_OFF;
+      } else if (flasherInputs.leftSw) {
+        blinkCnt = 0;
+        flasherState = FLASHER_OFF;
+        flasherStatePrev = FLASHER_HAZARD;
+      } else if (flasherInputs.rightSw) {
+        blinkCnt = 0;
+        flasherState = FLASHER_OFF;
+        flasherStatePrev = FLASHER_HAZARD;
       }
-      flasherCmds[1] = OFF;
-
-      // next state
-      if (blinkCnt > MIN_FLASHER_BLINK) {
-        if (flasherInputs.leftSw == OFF) {
-          flasherCmds[0] = OFF;
-          flasherCmds[1] = OFF;
-
-          flasherState = flasherStatePrev;
-          flasherStatePrev = FLASHER_L;
-          blinkCnt = 0;
-        } else if (flasherInputs.leftSw == ON && toggleHazardState == 1) {
-          toggleHazardState = 0;
-
-          flasherCmds[0] = OFF;
-          flasherCmds[1] = OFF;
-
-          flasherState = FLASHER_HAZARD;
-          flasherStatePrev = FLASHER_L;
-          blinkCnt = 0;
-        }
+    } else {
+      if (toggleHazardState) {
+        toggleHazardState = 0;
+        flasherState = FLASHER_OFF;
       }
-      break;
+    }
+    break;
 
-    case FLASHER_R:
-      if (++flasherTimer >= flasherBlinkPeriod) {
-        flasherTimer = 0;
-        flasherCmds[1] ^= ON;
-        blinkCnt += flasherCmds[1];
+  case FLASHER_L:
+    if (++flasherTimer >= flasherBlinkPeriod) {
+      flasherTimer = 0;
+      flasherCmds[0] ^= ON;
+      blinkCnt += flasherCmds[0];
+    }
+    flasherCmds[1] = OFF;
+
+    // Determine the next state
+    if (flasherStatePrev == FLASHER_OFF) {
+      if (!flasherInputs.leftSw && blinkCnt > MIN_FLASHER_BLINK) {
+        blinkCnt = 0;
+        flasherState = FLASHER_OFF;
+      } else if (flasherInputs.rightSw) {
+        blinkCnt = 0;
+        flasherState = FLASHER_OFF;
+        flasherStatePrev = FLASHER_L;
+      } else if (toggleHazardState) {
+        blinkCnt = 0;
+        flasherState = FLASHER_OFF;
+        flasherStatePrev = FLASHER_L;
       }
-      flasherCmds[0] = OFF;
-
-      // next state
-      if (blinkCnt > MIN_FLASHER_BLINK) {
-        if (flasherInputs.rightSw == OFF) {
-          flasherCmds[0] = OFF;
-          flasherCmds[1] = OFF;
-
-          flasherState = flasherStatePrev;
-          flasherStatePrev = FLASHER_R;
-          blinkCnt = 0;
-        } else if (flasherInputs.rightSw == ON && toggleHazardState == 1) {
-          toggleHazardState = 0;
-
-          flasherCmds[0] = OFF;
-          flasherCmds[1] = OFF;
-
-          flasherState = FLASHER_HAZARD;
-          flasherStatePrev = FLASHER_R;
-          blinkCnt = 0;
-        }
+    } else {
+      if (!flasherInputs.leftSw) {
+        blinkCnt = 0;
+        flasherState = FLASHER_OFF;
       }
-      break;
+    }
+    break;
 
-    case FLASHER_OV:
-      break;
+  case FLASHER_R:
+    if (++flasherTimer >= flasherBlinkPeriod) {
+      flasherTimer = 0;
+      flasherCmds[1] ^= ON;
+      blinkCnt += flasherCmds[1];
+    }
+    flasherCmds[0] = OFF;
 
-    case FLASHER_UV:
-      break;
+    // Determine the next state
+    if (flasherStatePrev == FLASHER_OFF) {
+      if (!flasherInputs.rightSw && blinkCnt > MIN_FLASHER_BLINK) {
+        blinkCnt = 0;
+        flasherState = FLASHER_OFF;
+      } else if (flasherInputs.leftSw) {
+        blinkCnt = 0;
+        flasherState = FLASHER_OFF;
+        flasherStatePrev = FLASHER_R;
+      } else if (toggleHazardState) {
+        blinkCnt = 0;
+        flasherState = FLASHER_OFF;
+        flasherStatePrev = FLASHER_R;
+      }
+    } else {
+      if (!flasherInputs.rightSw) {
+        blinkCnt = 0;
+        flasherState = FLASHER_OFF;
+      }
     }
     break;
   }
