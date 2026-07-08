@@ -8,6 +8,7 @@
 
 #define LAMP_HEALTH_LT 620  // = 1V / 2
 #define LAMP_HEALTH_UT 2482 // = 4V / 2
+#define MIN_FLASHER_BLINK 3
 
 typedef enum {
   FLASHER_OFF,
@@ -40,6 +41,7 @@ static uint8_t flasherBlinkPeriod = 40; // 400ms with 10ms task period
 static uint8_t toggleHazardState = 0;
 static uint8_t flasherTimer = 0;
 static uint8_t diagSent[2] = {0}; // [0]: Left Flasher [1]: Right Flasher
+static uint8_t blinkCnt = 0;
 
 static void checkLampHealth(void) {
   /* Check Left Lamp*/
@@ -172,57 +174,68 @@ void Flasher_Update(void) {
         flasherTimer = 0;
         flasherCmds[0] ^= ON;
         flasherCmds[1] ^= ON;
+        blinkCnt += flasherCmds[0];
       }
 
-      if (!toggleHazardState && flasherInputs.leftSw) {
-        flasherCmds[0] = OFF;
-        flasherCmds[1] = OFF;
+      if (blinkCnt > MIN_FLASHER_BLINK) {
+        if (!toggleHazardState && flasherInputs.leftSw) {
+          flasherCmds[0] = OFF;
+          flasherCmds[1] = OFF;
 
-        flasherState = FLASHER_L;
-        flasherStatePrev = FLASHER_HAZARD;
-      } else if (!toggleHazardState && flasherInputs.rightSw) {
-        flasherCmds[0] = OFF;
-        flasherCmds[1] = OFF;
+          flasherState = FLASHER_L;
+          flasherStatePrev = FLASHER_HAZARD;
+          blinkCnt = 0;
+        } else if (!toggleHazardState && flasherInputs.rightSw) {
+          flasherCmds[0] = OFF;
+          flasherCmds[1] = OFF;
 
-        flasherState = FLASHER_R;
-        flasherStatePrev = FLASHER_HAZARD;
-      } else if (toggleHazardState) {
-        // FIXME: these two fail when we want to change from H -> OFF in the
-        // first one and H -> L in the second one
-        // OFF -> H -> L -> H -> OFF
-        // OFF -> L -> H -> L -> OFF
-        toggleHazardState = 0;
+          flasherState = FLASHER_R;
+          flasherStatePrev = FLASHER_HAZARD;
+          blinkCnt = 0;
+        } else if (toggleHazardState) {
+          // FIXME: these two fail when we want to change from H -> OFF in the
+          // first one and H -> L in the second one
+          // OFF -> H -> L -> H -> OFF
+          // OFF -> L -> H -> L -> OFF
+          toggleHazardState = 0;
 
-        flasherCmds[0] = OFF;
-        flasherCmds[1] = OFF;
+          flasherCmds[0] = OFF;
+          flasherCmds[1] = OFF;
 
-        flasherState = flasherStatePrev;
-        flasherStatePrev = FLASHER_HAZARD;
+          flasherState = flasherStatePrev;
+          flasherStatePrev = FLASHER_HAZARD;
+          blinkCnt = 0;
+        }
       }
+
       break;
-
     case FLASHER_L:
       if (++flasherTimer >= flasherBlinkPeriod) {
         flasherTimer = 0;
         flasherCmds[0] ^= ON;
+        blinkCnt += flasherCmds[0];
       }
       flasherCmds[1] = OFF;
 
       // next state
-      if (flasherInputs.leftSw == OFF) {
-        flasherCmds[0] = OFF;
-        flasherCmds[1] = OFF;
+      if (blinkCnt > MIN_FLASHER_BLINK) {
+        if (flasherInputs.leftSw == OFF) {
+          flasherCmds[0] = OFF;
+          flasherCmds[1] = OFF;
 
-        flasherState = flasherStatePrev;
-        flasherStatePrev = FLASHER_L;
-      } else if (flasherInputs.leftSw == ON && toggleHazardState == 1) {
-        toggleHazardState = 0;
+          flasherState = flasherStatePrev;
+          flasherStatePrev = FLASHER_L;
+          blinkCnt = 0;
+        } else if (flasherInputs.leftSw == ON && toggleHazardState == 1) {
+          toggleHazardState = 0;
 
-        flasherCmds[0] = OFF;
-        flasherCmds[1] = OFF;
+          flasherCmds[0] = OFF;
+          flasherCmds[1] = OFF;
 
-        flasherState = FLASHER_HAZARD;
-        flasherStatePrev = FLASHER_L;
+          flasherState = FLASHER_HAZARD;
+          flasherStatePrev = FLASHER_L;
+          blinkCnt = 0;
+        }
       }
       break;
 
@@ -230,24 +243,29 @@ void Flasher_Update(void) {
       if (++flasherTimer >= flasherBlinkPeriod) {
         flasherTimer = 0;
         flasherCmds[1] ^= ON;
+        blinkCnt += flasherCmds[1];
       }
       flasherCmds[0] = OFF;
 
       // next state
-      if (flasherInputs.rightSw == OFF) {
-        flasherCmds[0] = OFF;
-        flasherCmds[1] = OFF;
+      if (blinkCnt > MIN_FLASHER_BLINK) {
+        if (flasherInputs.rightSw == OFF) {
+          flasherCmds[0] = OFF;
+          flasherCmds[1] = OFF;
 
-        flasherState = flasherStatePrev;
-        flasherStatePrev = FLASHER_R;
-      } else if (flasherInputs.rightSw == ON && toggleHazardState == 1) {
-        toggleHazardState = 0;
+          flasherState = flasherStatePrev;
+          flasherStatePrev = FLASHER_R;
+          blinkCnt = 0;
+        } else if (flasherInputs.rightSw == ON && toggleHazardState == 1) {
+          toggleHazardState = 0;
 
-        flasherCmds[0] = OFF;
-        flasherCmds[1] = OFF;
+          flasherCmds[0] = OFF;
+          flasherCmds[1] = OFF;
 
-        flasherState = FLASHER_HAZARD;
-        flasherStatePrev = FLASHER_R;
+          flasherState = FLASHER_HAZARD;
+          flasherStatePrev = FLASHER_R;
+          blinkCnt = 0;
+        }
       }
       break;
 
