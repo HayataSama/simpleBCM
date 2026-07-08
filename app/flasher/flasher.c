@@ -95,9 +95,10 @@ void Flasher_Init(void) {
 void Flasher_ReadInput(void) {
   static GPIO_PinState input = 0;
   static PinState hazardSwPrev = OFF;
-  static Debounce_t leftSwDb = {0};
-  static Debounce_t rightSwDb = {0};
-  static Debounce_t hazardSwDb = {0};
+  static Debounce_t leftSwDb = {.swStable = STATE2GPIO(OFF, AL), .counter = 0};
+  static Debounce_t rightSwDb = {.swStable = STATE2GPIO(OFF, AL), .counter = 0};
+  static Debounce_t hazardSwDb = {.swStable = STATE2GPIO(OFF, AH),
+                                  .counter = 0};
 
   input = HAL_GPIO_ReadPin(SW_FLASHER_L_GPIO_Port, SW_FLASHER_L_Pin);
   flasherInputs.leftSw = GPIO2STATE(debounce(input, 5, &leftSwDb), AL);

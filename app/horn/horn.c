@@ -21,7 +21,7 @@ void Horn_Init(void) {
 }
 
 void Horn_ReadInput(void) {
-  static Debounce_t hornSwDb = {0};
+  static Debounce_t hornSwDb = {.swStable = STATE2GPIO(OFF, AH), .counter = 0};
   GPIO_PinState input = HAL_GPIO_ReadPin(SW_HORN_GPIO_Port, SW_HORN_Pin);
   sw_horn = debounce(input, 5, &hornSwDb);
 }

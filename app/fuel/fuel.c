@@ -97,7 +97,7 @@ void Fuel_ReadInput(void) {
   // LS or HS
   static GPIO_PinState gasSw = GPIO_PIN_SET;
   static GPIO_PinState gasSwPrev = GPIO_PIN_SET;
-  static Debounce_t gasSwDb = {0};
+  static Debounce_t gasSwDb = {.swStable = STATE2GPIO(OFF, AL), .counter = 0};
 
   GPIO_PinState input = HAL_GPIO_ReadPin(SW_GAS_GPIO_Port, SW_GAS_Pin);
   gasSw = debounce(input, 5, &gasSwDb);
