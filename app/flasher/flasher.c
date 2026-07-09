@@ -1,5 +1,6 @@
 #include "flasher.h"
 #include "adc.h"
+#include "battery.h"
 #include "main.h"
 #include "util.h"
 #include <stdint.h>
@@ -18,15 +19,21 @@ typedef enum {
 
 typedef struct {
   PinState leftSw;
+  PinState leftSwPrev;
   PinState rightSw;
+  PinState rightSwPrev;
   PinState hazardSw;
+  PinState hazardSwPrev;
   uint16_t leftLampCurr;
   uint16_t rightLampCurr;
 } FlasherInput_t;
 
 FlasherInput_t flasherInputs = {.leftSw = OFF,
+                                .leftSwPrev = OFF,
                                 .rightSw = OFF,
+                                .rightSwPrev = OFF,
                                 .hazardSw = OFF,
+                                .hazardSwPrev = OFF,
                                 .leftLampCurr = 0,
                                 .rightLampCurr = 0};
 
@@ -39,6 +46,7 @@ static uint8_t toggleHazardState = 0;
 static uint8_t flasherTimer = 0;
 static uint8_t diagSent[2] = {0}; // [0]: Left Flasher [1]: Right Flasher
 static uint8_t blinkCnt = 0;
+static uint8_t reqNewCmd[2] = {0, 0}; // [0]: Left Flasher [1]: Right Flasher
 
 static void checkLampHealth(void) {
   /* Check Left Lamp*/
@@ -51,8 +59,12 @@ static void checkLampHealth(void) {
     }
   } else if (flasherInputs.leftLampCurr > LAMP_HEALTH_UT) {
     // Short Circuit
-    // TODO: Requires a new cmd
     flasherCmds[0] = 0;
+
+    flasherState = FLASHER_OFF;
+    flasherStatePrev = FLASHER_OFF;
+    reqNewCmd[0] = 1;
+
     if (!diagSent[0]) {
       diagSent[0] = 1;
       printf("FLHSC\r\n");
@@ -73,8 +85,12 @@ static void checkLampHealth(void) {
     }
   } else if (flasherInputs.rightLampCurr > LAMP_HEALTH_UT) {
     // Short Circuit
-    // TODO: Requires a new cmd
     flasherCmds[1] = 0;
+
+    flasherState = FLASHER_OFF;
+    flasherStatePrev = FLASHER_OFF;
+    reqNewCmd[1] = 1;
+
     if (!diagSent[1]) {
       diagSent[1] = 1;
       printf("FRHSC\r\n");
@@ -86,6 +102,21 @@ static void checkLampHealth(void) {
   }
 }
 
+static void checkBattery(void) {
+  if (batteryStatus == BATTERY_OV) {
+    flasherCmds[0] = OFF;
+    flasherCmds[1] = OFF;
+  } else if (batteryStatus == BATTERY_UV) {
+    flasherCmds[0] = OFF;
+    flasherCmds[1] = OFF;
+
+    flasherState = FLASHER_OFF;
+    flasherStatePrev = FLASHER_OFF;
+    reqNewCmd[0] = 1;
+    reqNewCmd[1] = 1;
+  }
+}
+
 void Flasher_Init(void) {
   HAL_GPIO_WritePin(FLASHER_L_GPIO_Port, FLASHER_L_Pin, STATE2GPIO(OFF, AH));
   HAL_GPIO_WritePin(FLASHER_R_GPIO_Port, FLASHER_R_Pin, STATE2GPIO(OFF, AL));
@@ -93,16 +124,17 @@ void Flasher_Init(void) {
 
 void Flasher_ReadInput(void) {
   static GPIO_PinState input = 0;
-  static PinState hazardSwPrev = OFF;
   static Debounce_t leftSwDb = {.swStable = STATE2GPIO(OFF, AL), .counter = 0};
   static Debounce_t rightSwDb = {.swStable = STATE2GPIO(OFF, AL), .counter = 0};
   static Debounce_t hazardSwDb = {.swStable = STATE2GPIO(OFF, AH),
                                   .counter = 0};
 
   input = HAL_GPIO_ReadPin(SW_FLASHER_L_GPIO_Port, SW_FLASHER_L_Pin);
+  flasherInputs.leftSwPrev = flasherInputs.leftSw;
   flasherInputs.leftSw = GPIO2STATE(debounce(input, 5, &leftSwDb), AL);
 
   input = HAL_GPIO_ReadPin(SW_FLASHER_R_GPIO_Port, SW_FLASHER_R_Pin);
+  flasherInputs.rightSwPrev = flasherInputs.rightSw;
   flasherInputs.rightSw = GPIO2STATE(debounce(input, 5, &rightSwDb), AL);
 
   input = HAL_GPIO_ReadPin(SW_HAZARD_GPIO_Port, SW_HAZARD_Pin);
@@ -111,28 +143,38 @@ void Flasher_ReadInput(void) {
   flasherInputs.leftLampCurr = adcValues.leftFlasherCurr;
   flasherInputs.rightLampCurr = adcValues.rightFlasherCurr;
 
-  if (hazardSwPrev == OFF && flasherInputs.hazardSw == ON) {
+  if (flasherInputs.hazardSwPrev == OFF && flasherInputs.hazardSw == ON) {
     // Switch pressed
     toggleHazardState = 1;
-    hazardSwPrev = flasherInputs.hazardSw;
-  } else if (hazardSwPrev == ON && flasherInputs.hazardSw == OFF) {
+    flasherInputs.hazardSwPrev = flasherInputs.hazardSw;
+  } else if (flasherInputs.hazardSwPrev == ON &&
+             flasherInputs.hazardSw == OFF) {
     // Switch released
-    hazardSwPrev = flasherInputs.hazardSw;
+    flasherInputs.hazardSwPrev = flasherInputs.hazardSw;
   }
 }
 
 void Flasher_Update(void) {
-  // Every time we transition between states, we turn the output OFF for a
-  // breif moment to avoid desyncronization between left and right flashers
+  if (reqNewCmd[0] || reqNewCmd[1]) {
+    if (flasherInputs.leftSwPrev == ON && flasherInputs.leftSw == OFF) {
+      // Switch released. Waiting for a new command
+      reqNewCmd[0] = 0;
+    }
+    if (flasherInputs.rightSwPrev == ON && flasherInputs.rightSw == OFF) {
+      // Switch released. Waiting for a new command
+      reqNewCmd[1] = 0;
+    }
+  }
+
   switch (flasherState) {
   case FLASHER_OFF:
     flasherCmds[0] = OFF;
     flasherCmds[1] = OFF;
 
     if (flasherStatePrev == FLASHER_OFF) {
-      if (flasherInputs.leftSw) {
+      if (flasherInputs.leftSw && !reqNewCmd[0]) {
         flasherState = FLASHER_L;
-      } else if (flasherInputs.rightSw) {
+      } else if (flasherInputs.rightSw && !reqNewCmd[1]) {
         flasherState = FLASHER_R;
       } else if (toggleHazardState) {
         toggleHazardState = 0;
@@ -186,11 +228,11 @@ void Flasher_Update(void) {
         toggleHazardState = 0;
         blinkCnt = 0;
         flasherState = FLASHER_OFF;
-      } else if (flasherInputs.leftSw) {
+      } else if (flasherInputs.leftSw && !reqNewCmd[0]) {
         blinkCnt = 0;
         flasherState = FLASHER_OFF;
         flasherStatePrev = FLASHER_HAZARD;
-      } else if (flasherInputs.rightSw) {
+      } else if (flasherInputs.rightSw && !reqNewCmd[1]) {
         blinkCnt = 0;
         flasherState = FLASHER_OFF;
         flasherStatePrev = FLASHER_HAZARD;
@@ -216,7 +258,7 @@ void Flasher_Update(void) {
       if (!flasherInputs.leftSw && blinkCnt > MIN_FLASHER_BLINK) {
         blinkCnt = 0;
         flasherState = FLASHER_OFF;
-      } else if (flasherInputs.rightSw) {
+      } else if (flasherInputs.rightSw && !reqNewCmd[1]) {
         blinkCnt = 0;
         flasherState = FLASHER_OFF;
         flasherStatePrev = FLASHER_L;
@@ -246,7 +288,7 @@ void Flasher_Update(void) {
       if (!flasherInputs.rightSw && blinkCnt > MIN_FLASHER_BLINK) {
         blinkCnt = 0;
         flasherState = FLASHER_OFF;
-      } else if (flasherInputs.leftSw) {
+      } else if (flasherInputs.leftSw && !reqNewCmd[0]) {
         blinkCnt = 0;
         flasherState = FLASHER_OFF;
         flasherStatePrev = FLASHER_R;
@@ -264,8 +306,10 @@ void Flasher_Update(void) {
     break;
   }
 
-  // This overwrites flasherCmds if lamps have a problem
-  checkLampHealth();
+  if (flasherState != FLASHER_HAZARD) {
+    checkLampHealth();
+    checkBattery();
+  }
 }
 
 void Flasher_WriteOutput(void) {
