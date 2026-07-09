@@ -99,12 +99,10 @@ int main(void) {
   MX_DMA_Init();
   MX_TIM7_Init();
   MX_USART3_UART_Init();
-  MX_TIM2_Init();
   MX_ADC_Init();
   MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim7);
-  HAL_TIM_Base_Start(&htim2);
 
   /* Initializations */
   ADC_Start(ADC_CHANNEL_6);

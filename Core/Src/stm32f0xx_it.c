@@ -56,7 +56,6 @@
 
 /* External variables --------------------------------------------------------*/
 extern ADC_HandleTypeDef hadc;
-extern TIM_HandleTypeDef htim2;
 extern TIM_HandleTypeDef htim7;
 extern TIM_HandleTypeDef htim15;
 extern DMA_HandleTypeDef hdma_usart3_tx;
@@ -174,20 +173,6 @@ void ADC1_COMP_IRQHandler(void)
   /* USER CODE BEGIN ADC1_COMP_IRQn 1 */
 
   /* USER CODE END ADC1_COMP_IRQn 1 */
-}
-
-/**
-  * @brief This function handles TIM2 global interrupt.
-  */
-void TIM2_IRQHandler(void)
-{
-  /* USER CODE BEGIN TIM2_IRQn 0 */
-
-  /* USER CODE END TIM2_IRQn 0 */
-  HAL_TIM_IRQHandler(&htim2);
-  /* USER CODE BEGIN TIM2_IRQn 1 */
-
-  /* USER CODE END TIM2_IRQn 1 */
 }
 
 /**

@@ -185,6 +185,7 @@ void readADC(void) {
   if (adcDataReady) {
     adcDataReady = 0;
     val = HAL_ADC_GetValue(&hadc);
+
     switch (current_ch) {
     case ADC_CHANNEL_6:
       adcValues.battery = val;

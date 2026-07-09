@@ -9,26 +9,32 @@ typedef struct {
   uint8_t counter;
 } Debounce_t;
 
-// GPIO Pin Level: Active-High or Active-Low
+// GPIO Logic Level: ActiveHigh or ActiveLow
 typedef enum { AL, AH } PinLevel;
 
+// Generic PinState regardless of pin logic level
 typedef enum { OFF, ON } PinState;
 
+// Convert milivolts to 12bit ADC value assuming 3.3V VDDA
 #define MV2ADC(v) ((uint32_t)(v) * 4095 / 3300)
+
+// Convert PinState to GPIO_PinState based on logic level
 #define GPIO2STATE(pin, level)                                                 \
   (((GPIO_PinState)(pin) ^ (PinLevel)(level)) ? (PinState)(OFF)                \
                                               : (PinState)(ON))
+
+// Convert GPIO_PinState to PinState based on logic level
 #define STATE2GPIO(state, level)                                               \
   (((PinState)(state) ^ (PinLevel)(level)) ? (GPIO_PinState)(GPIO_PIN_RESET)   \
                                            : (GPIO_PinState)(GPIO_PIN_SET))
 
 /**
- * @brief Debounces a switch
+ * @brief Debounce a switch
  *
- * @param sw  PinState of switch
+ * @param sw  GPIO_PinState of switch
  * @param cnt Number of cycles to wait for stabilization.
  *            Note that this multiplys by the period of the function
- *            that calls Debounce() to get real time.
+ *            that calls debounce() to get real time.
  *
  * @retval GPIO_PinState swStable
  */
