@@ -2,11 +2,11 @@
 #include <stdio.h>
 
 void diagnostic(void) {
-  printf("ADC ch6: %u  "
-         "ADC ch7: %u  "
-         "ADC ch8: %u  "
-         "ADC ch9: %u"
+  printf("battery: %u  "
+         "gasTank: %u  "
+         "leftFlasher: %u  "
+         "rightFlasher: %u"
          "\r\n",
          adcValues.battery, adcValues.gasTankPressure,
-         adcValues.rightFlasherCurr, adcValues.leftFlasherCurr);
+         adcValues.leftFlasherCurr, adcValues.rightFlasherCurr);
 }
