@@ -9,6 +9,8 @@
 #define LAMP_HEALTH_LT MV2ADC(500)  // = 1V / 2 resistor divider
 #define LAMP_HEALTH_UT MV2ADC(2000) // = 4V / 2 resistor divider
 #define MIN_FLASHER_BLINK 3
+#define FLASHER_BLINK_PERIOD_NORMAL 40 // 40 * 10ms ticks
+#define FLASHER_BLINK_PERIOD_FAULT 20  // 20 * 10ms ticks
 
 typedef enum {
   FLASHER_OFF,
@@ -28,7 +30,10 @@ typedef struct {
   uint16_t rightLampCurr;
 } FlasherInput_t;
 
-static uint8_t flasherBlinkPeriod = 40; // 400ms with 10ms task period
+static uint8_t flasherBlinkPeriod[2] = {
+    FLASHER_BLINK_PERIOD_NORMAL,
+    FLASHER_BLINK_PERIOD_NORMAL}; // [0]: Left Flasher [1]: Right Flasher
+static uint8_t blinkCnt = 0;      // Used to enforce minimum blink count
 static uint8_t toggleHazardState = 0;
 static uint8_t reqNewCmd[2] = {0, 0}; // [0]: Left Flasher [1]: Right Flasher
 static FlasherState_t flasherState = FLASHER_OFF;
@@ -50,14 +55,12 @@ static FlasherInput_t flasherInputs = {.leftSw = OFF,
  * This functions writes to the debug port the first time it detects a fault.
  */
 static void checkLampHealth(void) {
-  // FIXME: Healthy state overwrites flasherBlinkPeriod for the other flasher.
-  // Solution: seperate flasherBlinkPeriod for each flasher
   static uint8_t diagSent[2] = {0}; // [0]: Left Flasher [1]: Right Flasher
 
   /* Check Left Lamp*/
   if (flasherInputs.leftLampCurr < LAMP_HEALTH_LT) {
     // Open Circuit
-    flasherBlinkPeriod = 20;
+    flasherBlinkPeriod[0] = FLASHER_BLINK_PERIOD_FAULT;
 
     if (!diagSent[0]) {
       diagSent[0] = 1;
@@ -67,10 +70,13 @@ static void checkLampHealth(void) {
     // Short Circuit
     flasherCmds[0] = 0;
 
-    flasherState = FLASHER_OFF;
-    flasherStatePrev = FLASHER_OFF;
-    // FIXME: reqNewCmd must only be set when flasher is already on.
-    reqNewCmd[0] = 1;
+    // Avoids a bug where you need to switch leftSw twice for it to take effect
+    if (flasherState == FLASHER_L) {
+      flasherState = FLASHER_OFF;
+      flasherStatePrev = FLASHER_OFF;
+      reqNewCmd[0] = 1;
+      blinkCnt = 0;
+    }
 
     if (!diagSent[0]) {
       diagSent[0] = 1;
@@ -78,14 +84,14 @@ static void checkLampHealth(void) {
     }
   } else {
     // Healthy
-    flasherBlinkPeriod = 40;
+    flasherBlinkPeriod[0] = FLASHER_BLINK_PERIOD_NORMAL;
     diagSent[0] = 0;
   }
 
   /* Check Left Lamp*/
   if (flasherInputs.rightLampCurr < LAMP_HEALTH_LT) {
     // Open Circuit
-    flasherBlinkPeriod = 20;
+    flasherBlinkPeriod[1] = FLASHER_BLINK_PERIOD_FAULT;
     if (!diagSent[1]) {
       diagSent[1] = 1;
       printf("FRHOC\r\n");
@@ -94,9 +100,13 @@ static void checkLampHealth(void) {
     // Short Circuit
     flasherCmds[1] = 0;
 
-    flasherState = FLASHER_OFF;
-    flasherStatePrev = FLASHER_OFF;
-    reqNewCmd[1] = 1;
+    // Avoids a bug where you need to switch rightSw twice for it to take effect
+    if (flasherState == FLASHER_R) {
+      flasherState = FLASHER_OFF;
+      flasherStatePrev = FLASHER_OFF;
+      reqNewCmd[1] = 1;
+      blinkCnt = 0;
+    }
 
     if (!diagSent[1]) {
       diagSent[1] = 1;
@@ -104,7 +114,7 @@ static void checkLampHealth(void) {
     }
   } else {
     // Healthy
-    flasherBlinkPeriod = 40;
+    flasherBlinkPeriod[1] = FLASHER_BLINK_PERIOD_NORMAL;
     diagSent[1] = 0;
   }
 }
@@ -126,6 +136,7 @@ static void checkBattery(void) {
     flasherStatePrev = FLASHER_OFF;
     reqNewCmd[0] = 1;
     reqNewCmd[1] = 1;
+    blinkCnt = 0;
   }
 }
 
@@ -171,7 +182,6 @@ void Flasher_ReadInput(void) {
 
 void Flasher_Update(void) {
   static uint8_t flasherTimer = 0; // Used to enforce blink period
-  static uint8_t blinkCnt = 0;     // Used to enforce minimum blink count
 
   if (reqNewCmd[0] || reqNewCmd[1]) {
     // If newCmd is required, check if switches have been turn off or not
@@ -183,28 +193,26 @@ void Flasher_Update(void) {
     }
   }
 
-  /* Main state machine */
+  /*
+   * Main state machine:
+   * In each state, first the output suitable for that state is set.
+   * Then we determine the next state based on the swtich inputs, whether the
+   * minimum blink count has been reached or not and if newCmd is required or
+   * not.
+   * To implement the priority functionality (last input always has a higher
+   * priority), in order to avoid unnecessary complications, we first go back
+   * to FLASHER_OFF for a brief moment before switching to the desired state.
+   * This fixes the desynchronization issue between lamps and also avoids
+   * rewriting simliar code in each state.
+   * This is achieved by using a second flasherState variable
+   * (flasherStatePrev) to track if we went from OFF state to either ON states
+   * or not. If not, then when last state's switch is turned off, we go back
+   * to the previous state. Take notice to where flasherStatePrev is updated
+   * in each state.
+   * For example activate left flasher in hazard state:
+   * OFF -> HZ -> OFF -> L (lSw off) L -> OFF -> HZ (hzSw off) HZ -> OFF
+   */
   switch (flasherState) {
-
-    /*
-     * In each state, first the output suitable for that state is set.
-     * Then we determine the next state based on the swtich inputs, whether the
-     * minimum blink count has been reached or not and if newCmd is required or
-     * not.
-     * To implement the priority functionality (last input always has a higher
-     * priority), in order to avoid unnecessary complications, we first go back
-     * to FLASHER_OFF for a brief moment before switching to the desired state.
-     * This fixes the desynchronization issue between lamps and also avoids
-     * rewriting simliar code in each state.
-     * This is achieved by using a second flasherState variable
-     * (flasherStatePrev) to track if we went from OFF state to either ON states
-     * or not. If not, then when last state's switch is turned off, we go back
-     * to the previous state. Take notice to where flasherStatePrev is updated
-     * in each state.
-     * For example activate left flasher in hazard state:
-     * OFF -> HZ -> OFF -> L (lSw off) L -> OFF -> HZ (hzSw off) HZ -> OFF
-     */
-
   case FLASHER_OFF:
     flasherCmds[0] = OFF;
     flasherCmds[1] = OFF;
@@ -253,7 +261,7 @@ void Flasher_Update(void) {
     break;
 
   case FLASHER_HAZARD:
-    if (++flasherTimer >= flasherBlinkPeriod) {
+    if (++flasherTimer >= FLASHER_BLINK_PERIOD_NORMAL) {
       flasherTimer = 0;
       flasherCmds[0] ^= ON;
       flasherCmds[1] ^= ON;
@@ -287,7 +295,7 @@ void Flasher_Update(void) {
     break;
 
   case FLASHER_L:
-    if (++flasherTimer >= flasherBlinkPeriod) {
+    if (++flasherTimer >= flasherBlinkPeriod[0]) {
       flasherTimer = 0;
       flasherCmds[0] ^= ON;
       blinkCnt += flasherCmds[0];
@@ -317,7 +325,7 @@ void Flasher_Update(void) {
     break;
 
   case FLASHER_R:
-    if (++flasherTimer >= flasherBlinkPeriod) {
+    if (++flasherTimer >= flasherBlinkPeriod[1]) {
       flasherTimer = 0;
       flasherCmds[1] ^= ON;
       blinkCnt += flasherCmds[1];
