@@ -5,7 +5,7 @@
 #include "util.h"
 #include <stdint.h>
 
-#define GAS_BLINK_PERIOD (400 / 10) // 400ms with 10ms task period
+#define GAS_BLINK_PERIOD 40 // 40 * 10ms ticks
 #define ENGINE_RPM_THRSH 2400
 #define ENGINE_RPM_MIN 600
 
@@ -27,11 +27,10 @@ typedef struct {
   PinState f4;
 } FuelCmds;
 
-static FuelState_t fuelState = PETROL;
 static uint8_t toggleState = 0;
-static uint8_t gasIndTimer = 0;
-static uint16_t engineRPM = 0;
 static uint16_t gasTankPressure = 0;
+static uint16_t engineRPM = 0;
+static FuelState_t fuelState = PETROL;
 static FuelCmds fuelCmds = {.gasValve = OFF,
                             .gasInd = OFF,
                             .petrolInd = ON,
@@ -74,39 +73,29 @@ static void setGasGaugeCmds(void) {
 void Fuel_Init(void) {
   HAL_TIM_IC_Start_IT(&htim15, TIM_CHANNEL_2);
 
-  HAL_GPIO_WritePin(GAS_VALVE_GPIO_Port, GAS_VALVE_Pin,
-                    fuelCmds.gasValve ? GPIO_PIN_SET : GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(GAS_IND_GPIO_Port, GAS_IND_Pin,
-                    fuelCmds.gasInd ? GPIO_PIN_SET : GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(PETROL_IND_GPIO_Port, PETROL_IND_Pin,
-                    fuelCmds.petrolInd ? GPIO_PIN_SET : GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(F1_GPIO_Port, F1_Pin,
-                    fuelCmds.f1 ? GPIO_PIN_RESET : GPIO_PIN_SET);
-  HAL_GPIO_WritePin(F2_GPIO_Port, F2_Pin,
-                    fuelCmds.f2 ? GPIO_PIN_RESET : GPIO_PIN_SET);
-  HAL_GPIO_WritePin(F3_GPIO_Port, F3_Pin,
-                    fuelCmds.f3 ? GPIO_PIN_RESET : GPIO_PIN_SET);
-  HAL_GPIO_WritePin(F4_GPIO_Port, F4_Pin,
-                    fuelCmds.f4 ? GPIO_PIN_RESET : GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GAS_VALVE_GPIO_Port, GAS_VALVE_Pin, STATE2GPIO(OFF, AH));
+  HAL_GPIO_WritePin(GAS_IND_GPIO_Port, GAS_IND_Pin, STATE2GPIO(OFF, AH));
+  HAL_GPIO_WritePin(PETROL_IND_GPIO_Port, PETROL_IND_Pin, STATE2GPIO(OFF, AH));
+  HAL_GPIO_WritePin(F1_GPIO_Port, F1_Pin, STATE2GPIO(OFF, AL));
+  HAL_GPIO_WritePin(F2_GPIO_Port, F2_Pin, STATE2GPIO(OFF, AL));
+  HAL_GPIO_WritePin(F3_GPIO_Port, F3_Pin, STATE2GPIO(OFF, AL));
+  HAL_GPIO_WritePin(F4_GPIO_Port, F4_Pin, STATE2GPIO(OFF, AL));
 }
 
 void Fuel_ReadInput(void) {
-  // TODO: update sw_gas type to PinState and change if statements
-  // Also update debonce function.
-  // Also create a macro that relates PinState and GPIO state given the pin and
-  // LS or HS
-  static GPIO_PinState gasSw = GPIO_PIN_SET;
-  static GPIO_PinState gasSwPrev = GPIO_PIN_SET;
+  static PinState gasSw = OFF;
+  static PinState gasSwPrev = OFF;
   static Debounce_t gasSwDb = {.swStable = STATE2GPIO(OFF, AL), .counter = 0};
 
   GPIO_PinState input = HAL_GPIO_ReadPin(SW_GAS_GPIO_Port, SW_GAS_Pin);
-  gasSw = debounce(input, 5, &gasSwDb);
+  gasSw = GPIO2STATE(debounce(input, 5, &gasSwDb), AL);
 
-  if (gasSwPrev == GPIO_PIN_SET && gasSw == GPIO_PIN_RESET) {
+  /* Implement latching for gas switch */
+  if (gasSwPrev == OFF && gasSw == ON) {
     // Switch pressed
     toggleState = 1;
     gasSwPrev = gasSw;
-  } else if (gasSwPrev == GPIO_PIN_RESET && gasSw == GPIO_PIN_SET) {
+  } else if (gasSwPrev == ON && gasSw == OFF) {
     // Switch released
     gasSwPrev = gasSw;
   }
@@ -115,6 +104,8 @@ void Fuel_ReadInput(void) {
 }
 
 void Fuel_Update(void) {
+  static uint8_t gasIndTimer = 0;
+
   switch (fuelState) {
   case PETROL:
     fuelCmds.petrolInd = ON;
@@ -166,19 +157,21 @@ void Fuel_Update(void) {
 
 void Fuel_WriteOutput(void) {
   HAL_GPIO_WritePin(GAS_VALVE_GPIO_Port, GAS_VALVE_Pin,
-                    fuelCmds.gasValve ? GPIO_PIN_SET : GPIO_PIN_RESET);
+                    fuelCmds.gasValve ? STATE2GPIO(ON, AH)
+                                      : STATE2GPIO(OFF, AH));
   HAL_GPIO_WritePin(GAS_IND_GPIO_Port, GAS_IND_Pin,
-                    fuelCmds.gasInd ? GPIO_PIN_SET : GPIO_PIN_RESET);
+                    fuelCmds.gasInd ? STATE2GPIO(ON, AH) : STATE2GPIO(OFF, AH));
   HAL_GPIO_WritePin(PETROL_IND_GPIO_Port, PETROL_IND_Pin,
-                    fuelCmds.petrolInd ? GPIO_PIN_SET : GPIO_PIN_RESET);
+                    fuelCmds.petrolInd ? STATE2GPIO(ON, AH)
+                                       : STATE2GPIO(OFF, AH));
   HAL_GPIO_WritePin(F1_GPIO_Port, F1_Pin,
-                    fuelCmds.f1 ? GPIO_PIN_RESET : GPIO_PIN_SET);
+                    fuelCmds.f1 ? STATE2GPIO(ON, AL) : STATE2GPIO(OFF, AL));
   HAL_GPIO_WritePin(F2_GPIO_Port, F2_Pin,
-                    fuelCmds.f2 ? GPIO_PIN_RESET : GPIO_PIN_SET);
+                    fuelCmds.f2 ? STATE2GPIO(ON, AL) : STATE2GPIO(OFF, AL));
   HAL_GPIO_WritePin(F3_GPIO_Port, F3_Pin,
-                    fuelCmds.f3 ? GPIO_PIN_RESET : GPIO_PIN_SET);
+                    fuelCmds.f3 ? STATE2GPIO(ON, AL) : STATE2GPIO(OFF, AL));
   HAL_GPIO_WritePin(F4_GPIO_Port, F4_Pin,
-                    fuelCmds.f4 ? GPIO_PIN_RESET : GPIO_PIN_SET);
+                    fuelCmds.f4 ? STATE2GPIO(ON, AL) : STATE2GPIO(OFF, AL));
 }
 
 void readRPM(void) {
